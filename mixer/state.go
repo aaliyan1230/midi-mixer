@@ -1,6 +1,7 @@
 package mixer
 
 import (
+	"midi-mixer/audio"
 	"midi-mixer/midi"
 )
 
@@ -32,6 +33,7 @@ type State struct {
 	MasterVolume  uint8
 	SelectedIndex int
 	MidiHandler   *midi.Handler
+	AudioEngine   *audio.Engine
 	InputPortIdx  int
 	OutputPortIdx int
 }
@@ -43,14 +45,29 @@ func NewState(numChannels int) *State {
 		channels[i] = NewChannel(i, channelName(i))
 	}
 
-	return &State{
+	// Initialize audio engine
+	audioEngine, _ := audio.NewEngine(numChannels)
+
+	state := &State{
 		Channels:      channels,
 		MasterVolume:  100,
 		SelectedIndex: 0,
 		MidiHandler:   midi.NewHandler(),
+		AudioEngine:   audioEngine,
 		InputPortIdx:  -1,
 		OutputPortIdx: -1,
 	}
+
+	// Sync initial state to audio engine
+	if audioEngine != nil {
+		for i, ch := range channels {
+			audioEngine.SetChannelVolume(i, ch.Volume)
+			audioEngine.SetChannelPan(i, ch.Pan)
+		}
+		audioEngine.SetMasterVolume(state.MasterVolume)
+	}
+
+	return state
 }
 
 // channelName returns default name for channel index
@@ -95,6 +112,11 @@ func (s *State) AdjustVolume(delta int) {
 	}
 	ch.Volume = uint8(newVal)
 
+	// Update audio engine
+	if s.AudioEngine != nil {
+		s.AudioEngine.SetChannelVolume(ch.ID, ch.Volume)
+	}
+
 	// Send MIDI CC if not muted
 	if !ch.Mute && s.MidiHandler != nil {
 		s.MidiHandler.SendCC(uint8(ch.ID), midi.CCVolume, ch.Volume)
@@ -116,6 +138,11 @@ func (s *State) AdjustPan(delta int) {
 	}
 	ch.Pan = uint8(newVal)
 
+	// Update audio engine
+	if s.AudioEngine != nil {
+		s.AudioEngine.SetChannelPan(ch.ID, ch.Pan)
+	}
+
 	// Send MIDI CC
 	if s.MidiHandler != nil {
 		s.MidiHandler.SendCC(uint8(ch.ID), midi.CCPan, ch.Pan)
@@ -130,6 +157,11 @@ func (s *State) ToggleMute() {
 	}
 
 	ch.Mute = !ch.Mute
+
+	// Update audio engine
+	if s.AudioEngine != nil {
+		s.AudioEngine.SetChannelMute(ch.ID, ch.Mute)
+	}
 
 	// Send volume 0 when muted, restore when unmuted
 	if s.MidiHandler != nil {
@@ -149,6 +181,14 @@ func (s *State) ToggleSolo() {
 	}
 
 	ch.Solo = !ch.Solo
+
+	// Update audio engine for all channels
+	if s.AudioEngine != nil {
+		for _, c := range s.Channels {
+			s.AudioEngine.SetChannelSolo(c.ID, c.Solo)
+		}
+	}
+
 	s.updateSoloState()
 }
 
@@ -189,6 +229,9 @@ func (s *State) updateSoloState() {
 func (s *State) SetChannelVolume(channelID int, value uint8) {
 	if channelID >= 0 && channelID < len(s.Channels) {
 		s.Channels[channelID].Volume = value
+		if s.AudioEngine != nil {
+			s.AudioEngine.SetChannelVolume(channelID, value)
+		}
 	}
 }
 
@@ -196,6 +239,9 @@ func (s *State) SetChannelVolume(channelID int, value uint8) {
 func (s *State) SetChannelPan(channelID int, value uint8) {
 	if channelID >= 0 && channelID < len(s.Channels) {
 		s.Channels[channelID].Pan = value
+		if s.AudioEngine != nil {
+			s.AudioEngine.SetChannelPan(channelID, value)
+		}
 	}
 }
 
@@ -208,10 +254,18 @@ func (s *State) AdjustMasterVolume(delta int) {
 		newVal = 127
 	}
 	s.MasterVolume = uint8(newVal)
+
+	// Update audio engine
+	if s.AudioEngine != nil {
+		s.AudioEngine.SetMasterVolume(s.MasterVolume)
+	}
 }
 
 // Close cleans up resources
 func (s *State) Close() {
+	if s.AudioEngine != nil {
+		s.AudioEngine.Close()
+	}
 	if s.MidiHandler != nil {
 		s.MidiHandler.Close()
 	}

@@ -1,17 +1,23 @@
 # MIDI Mixer TUI
 
-A terminal-based MIDI mixer application built with Go, featuring 8 channel strips with volume faders, pan controls, mute/solo buttons, and bidirectional MIDI support.
+A terminal-based MIDI mixer application built with Go, featuring 8 channel strips with volume faders, pan controls, mute/solo buttons, built-in audio synthesis, and bidirectional MIDI support.
 
 ![MIDI Mixer Screenshot](screenshot.png)
 
 ## Features
 
+- **Built-in Audio Engine** - Works standalone! Each channel generates a musical tone (C4-C5 scale)
 - **8 Channel Strips** - Each with volume fader (CC7), pan control (CC10), mute and solo buttons
 - **Master Fader** - Overall volume control
-- **Bidirectional MIDI** - Receive CC messages from controllers, send changes to MIDI devices
+- **Real-time Mixing** - Hear your changes instantly as you adjust faders and pan
+- **Bidirectional MIDI** - Optionally connect to external MIDI devices
 - **Device Selection** - Choose MIDI input/output devices at runtime
 - **Keyboard Navigation** - Full keyboard control for all mixer functions
 - **Beautiful TUI** - Colorful terminal interface using Lipgloss styling
+
+## No Hardware Required
+
+The mixer works out of the box with your computer's keyboard and speakers. Each of the 8 channels plays a different musical note, and you can mix them together using the faders, pan controls, mute, and solo buttons.
 
 ## Installation
 
@@ -99,7 +105,22 @@ midi-mixer/
 
 - [Bubbletea](https://github.com/charmbracelet/bubbletea) - TUI framework
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - Styling
+- [oto](https://github.com/hajimehoshi/oto) - Cross-platform audio output
 - [gomidi/midi](https://gitlab.com/gomidi/midi) - MIDI library with RtMidi driver
+
+## How It Works
+
+The mixer generates 8 sine wave tones at different musical frequencies:
+- Channel 1: C4 (261.63 Hz)
+- Channel 2: D4 (293.66 Hz)
+- Channel 3: E4 (329.63 Hz)
+- Channel 4: F4 (349.23 Hz)
+- Channel 5: G4 (392.00 Hz)
+- Channel 6: A4 (440.00 Hz)
+- Channel 7: B4 (493.88 Hz)
+- Channel 8: C5 (523.25 Hz)
+
+Adjust volumes and panning to create your own mix!
 
 ## License
 
