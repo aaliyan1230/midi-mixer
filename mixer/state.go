@@ -264,6 +264,52 @@ func (s *State) AdjustMasterVolume(delta int) {
 	}
 }
 
+// AdjustBPM changes the tempo
+func (s *State) AdjustBPM(delta int) {
+	if s.AudioEngine != nil {
+		newBPM := s.AudioEngine.GetBPM() + delta
+		s.AudioEngine.SetBPM(newBPM)
+	}
+}
+
+// GetBPM returns current BPM
+func (s *State) GetBPM() int {
+	if s.AudioEngine != nil {
+		return s.AudioEngine.GetBPM()
+	}
+	return audio.DefaultBPM
+}
+
+// NextPattern cycles to next beat pattern
+func (s *State) NextPattern() {
+	if s.AudioEngine != nil {
+		s.AudioEngine.NextPattern()
+	}
+}
+
+// PrevPattern cycles to previous beat pattern
+func (s *State) PrevPattern() {
+	if s.AudioEngine != nil {
+		s.AudioEngine.PrevPattern()
+	}
+}
+
+// GetPatternIndex returns current pattern index
+func (s *State) GetPatternIndex() int {
+	if s.AudioEngine != nil {
+		return s.AudioEngine.GetPattern()
+	}
+	return 0
+}
+
+// GetCurrentStep returns the current step (0-15)
+func (s *State) GetCurrentStep() int {
+	if s.AudioEngine != nil {
+		return s.AudioEngine.GetCurrentStep()
+	}
+	return 0
+}
+
 // Close cleans up resources
 func (s *State) Close() {
 	if s.AudioEngine != nil {

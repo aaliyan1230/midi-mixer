@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"midi-mixer/audio"
 	"midi-mixer/mixer"
 
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +16,18 @@ const (
 	WaveformWidth  = 80
 	WaveformHeight = 8
 )
+
+// Friendly channel descriptions for non-musicians
+var channelDescriptions = map[string]string{
+	"KICK":  "💥 Bass drum - the heartbeat",
+	"SNARE": "🥁 Snappy crack on beats 2 & 4",
+	"HIHAT": "✨ Shimmery rhythm keeper",
+	"BASS":  "🎸 Deep low-end groove",
+	"LEAD1": "🎹 Main melody line",
+	"LEAD2": "🎵 Harmony/counter melody",
+	"PAD":   "🌊 Soft atmospheric layer",
+	"FX":    "🔮 Special effects & texture",
+}
 
 // RenderFader renders a vertical fader for a value 0-127
 func RenderFader(value uint8, height int) string {
@@ -67,12 +80,22 @@ func RenderChannel(ch mixer.Channel, selected bool) string {
 	// Fader
 	parts = append(parts, RenderFader(ch.Volume, FaderHeight))
 
-	// Volume value
+	// Volume value with friendly indicator
 	volPercent := int(float64(ch.Volume) / 127.0 * 100)
-	parts = append(parts, ValueStyle.Render(fmt.Sprintf("%3d%%", volPercent)))
+	volIndicator := ""
+	if volPercent == 0 {
+		volIndicator = "🔇"
+	} else if volPercent < 30 {
+		volIndicator = "🔈"
+	} else if volPercent < 70 {
+		volIndicator = "🔉"
+	} else {
+		volIndicator = "🔊"
+	}
+	parts = append(parts, ValueStyle.Render(fmt.Sprintf("%s%3d%%", volIndicator, volPercent)))
 	parts = append(parts, "")
 
-	// Pan
+	// Pan with friendly direction
 	parts = append(parts, RenderPanKnob(ch.Pan))
 	parts = append(parts, "")
 
@@ -130,7 +153,7 @@ func RenderMixer(state *mixer.State) string {
 
 // RenderHelp renders the help bar
 func RenderHelp() string {
-	help := "←/→: Select  ↑/↓: Volume  [/]: Pan  M: Mute  S: Solo  D: Devices  Q: Quit"
+	help := "←/→: Select  ↑/↓: Volume  [/]: Pan  M: Mute  S: Solo  P: Pattern  +/-: BPM  D: Devices  Q: Quit"
 	return HelpStyle.Render(help)
 }
 
@@ -141,6 +164,118 @@ func RenderStatus(state *mixer.State) string {
 
 	status := fmt.Sprintf("MIDI In: %s │ MIDI Out: %s", inPort, outPort)
 	return StatusStyle.Render(status)
+}
+
+// RenderPatternInfo renders the current pattern name and description
+func RenderPatternInfo(patternIdx int) string {
+	if patternIdx >= len(audio.BeatPresets) {
+		patternIdx = 0
+	}
+	pattern := audio.BeatPresets[patternIdx]
+
+	nameStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#F59E0B"))
+
+	descStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#9CA3AF")).
+		Italic(true)
+
+	return nameStyle.Render(pattern.Name) + "  " + descStyle.Render(pattern.Description)
+}
+
+// RenderStepSequencer renders a visual step sequencer showing the current beat
+func RenderStepSequencer(patternIdx int, currentStep int) string {
+	if patternIdx >= len(audio.BeatPresets) {
+		patternIdx = 0
+	}
+	pattern := audio.BeatPresets[patternIdx]
+
+	var lines []string
+
+	headerStyle := lipgloss.NewStyle().Foreground(ColorAccent).Bold(true)
+	lines = append(lines, headerStyle.Render("┌─ BEAT GRID ────────────────────────────────────┐"))
+
+	// Step numbers
+	stepNums := "│ "
+	for i := 0; i < 16; i++ {
+		if i == currentStep {
+			stepNums += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#22C55E")).Render(fmt.Sprintf("%X", i))
+		} else if i%4 == 0 {
+			stepNums += lipgloss.NewStyle().Foreground(ColorAccent).Render(fmt.Sprintf("%X", i))
+		} else {
+			stepNums += lipgloss.NewStyle().Foreground(ColorTextDim).Render(fmt.Sprintf("%X", i))
+		}
+		stepNums += " "
+	}
+	stepNums += "│"
+	lines = append(lines, stepNums)
+
+	// Separator
+	lines = append(lines, lipgloss.NewStyle().Foreground(ColorSurface).Render("├─────────────────────────────────────────────────┤"))
+
+	// Patterns for each drum
+	drumPatterns := []struct {
+		name    string
+		pattern []int
+		color   lipgloss.Color
+		emoji   string
+	}{
+		{"KICK ", pattern.Kick, lipgloss.Color("#EF4444"), "💥"},
+		{"SNARE", pattern.Snare, lipgloss.Color("#F59E0B"), "🥁"},
+		{"HIHAT", pattern.HiHat, lipgloss.Color("#22C55E"), "✨"},
+		{"BASS ", pattern.Bass, lipgloss.Color("#3B82F6"), "🎸"},
+	}
+
+	for _, dp := range drumPatterns {
+		line := "│" + dp.emoji
+		activeStyle := lipgloss.NewStyle().Foreground(dp.color).Bold(true)
+		inactiveStyle := lipgloss.NewStyle().Foreground(ColorSurface)
+		playheadStyle := lipgloss.NewStyle().Background(lipgloss.Color("#4ADE80")).Foreground(lipgloss.Color("#000000")).Bold(true)
+
+		for i, hit := range dp.pattern {
+			char := "·"
+			if hit == 1 {
+				char = "█"
+			}
+
+			if i == currentStep {
+				if hit == 1 {
+					line += playheadStyle.Render(char)
+				} else {
+					line += playheadStyle.Render("▪")
+				}
+			} else if hit == 1 {
+				line += activeStyle.Render(char)
+			} else {
+				line += inactiveStyle.Render(char)
+			}
+			line += " "
+		}
+		line += "│"
+		lines = append(lines, line)
+	}
+
+	// Footer
+	footerStyle := lipgloss.NewStyle().Foreground(ColorTextDim)
+	lines = append(lines, footerStyle.Render("└─ Press P to change pattern, +/- for tempo ─────┘"))
+
+	return strings.Join(lines, "\n")
+}
+
+// RenderChannelDescription renders a description for the selected channel
+func RenderChannelDescription(channelName string) string {
+	desc, ok := channelDescriptions[channelName]
+	if !ok {
+		desc = "🎵 Audio channel"
+	}
+
+	descStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#A78BFA")).
+		Italic(true).
+		Padding(0, 1)
+
+	return descStyle.Render("Selected: " + desc)
 }
 
 // Waveform block characters for different amplitudes

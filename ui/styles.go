@@ -2,19 +2,20 @@ package ui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Color palette
+// Color palette - enhanced for better visual appeal
 var (
-	ColorPrimary    = lipgloss.Color("#7C3AED") // Purple
+	ColorPrimary    = lipgloss.Color("#A855F7") // Vibrant Purple
 	ColorSecondary  = lipgloss.Color("#10B981") // Green
 	ColorAccent     = lipgloss.Color("#F59E0B") // Amber
 	ColorMuted      = lipgloss.Color("#EF4444") // Red
 	ColorSolo       = lipgloss.Color("#3B82F6") // Blue
-	ColorBackground = lipgloss.Color("#1F2937") // Dark gray
-	ColorSurface    = lipgloss.Color("#374151") // Medium gray
-	ColorText       = lipgloss.Color("#F9FAFB") // Light gray
-	ColorTextDim    = lipgloss.Color("#9CA3AF") // Dimmed text
+	ColorBackground = lipgloss.Color("#0F172A") // Darker background
+	ColorSurface    = lipgloss.Color("#1E293B") // Medium surface
+	ColorText       = lipgloss.Color("#F8FAFC") // Brighter text
+	ColorTextDim    = lipgloss.Color("#94A3B8") // Dimmed text
 	ColorFader      = lipgloss.Color("#4ADE80") // Bright green
-	ColorFaderBg    = lipgloss.Color("#374151") // Fader background
+	ColorFaderBg    = lipgloss.Color("#334155") // Fader background
+	ColorGlow       = lipgloss.Color("#C084FC") // Purple glow effect
 )
 
 // Styles

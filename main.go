@@ -150,6 +150,30 @@ func (m Model) handleMixerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.deviceSelector = ui.NewDeviceSelector()
 		m.currentView = ViewDevices
 
+	case "p", "P":
+		// Cycle through beat patterns
+		m.state.NextPattern()
+
+	case "shift+p":
+		// Cycle backwards through beat patterns
+		m.state.PrevPattern()
+
+	case "+", "=":
+		// Increase BPM
+		m.state.AdjustBPM(5)
+
+	case "-", "_":
+		// Decrease BPM
+		m.state.AdjustBPM(-5)
+
+	case ">", ".":
+		// Fine BPM increase
+		m.state.AdjustBPM(1)
+
+	case "<", ",":
+		// Fine BPM decrease
+		m.state.AdjustBPM(-1)
+
 	case "0":
 		// Reset selected channel to defaults
 		if ch := m.state.SelectedChannel(); ch != nil {
@@ -236,9 +260,15 @@ func (m Model) View() string {
 func (m Model) renderMixerView() string {
 	var sections []string
 
-	// Title
-	title := ui.TitleStyle.Render("🎛️  MIDI MIXER  ─  120 BPM")
+	// Title with current BPM
+	bpm := m.state.GetBPM()
+	title := ui.TitleStyle.Render(fmt.Sprintf("🎛️  MIDI MIXER  ─  %d BPM", bpm))
 	sections = append(sections, title)
+
+	// Current pattern info
+	patternIdx := m.state.GetPatternIndex()
+	sections = append(sections, ui.RenderPatternInfo(patternIdx))
+	sections = append(sections, "")
 
 	// Error message if any
 	if m.err != nil {
@@ -246,11 +276,22 @@ func (m Model) renderMixerView() string {
 		sections = append(sections, errStyle.Render(fmt.Sprintf("Error: %v", m.err)))
 	}
 
+	// Step sequencer visualization
+	currentStep := m.state.GetCurrentStep()
+	sections = append(sections, ui.RenderStepSequencer(patternIdx, currentStep))
+	sections = append(sections, "")
+
 	// Waveform visualizer
 	if len(m.waveformL) > 0 {
 		sections = append(sections, ui.RenderWaveform(m.waveformL, m.waveformR))
 		sections = append(sections, "")
 		sections = append(sections, ui.RenderVUMeter(m.waveformL, m.waveformR))
+	}
+	sections = append(sections, "")
+
+	// Selected channel description (helpful for non-musicians)
+	if ch := m.state.SelectedChannel(); ch != nil {
+		sections = append(sections, ui.RenderChannelDescription(ch.Name))
 	}
 	sections = append(sections, "")
 

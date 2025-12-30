@@ -12,16 +12,88 @@ const (
 	sampleRate   = 44100
 	channelCount = 2
 	bitDepth     = 2
-	bpm          = 120
 	waveformSize = 128
+	MinBPM       = 60
+	MaxBPM       = 200
+	DefaultBPM   = 120
 )
 
-// Beat pattern: 1 = hit, 0 = rest (16 steps per bar)
-var patterns = map[string][]int{
-	"kick":  {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-	"snare": {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-	"hihat": {1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
-	"bass":  {1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1},
+// BeatPreset contains patterns for all drums
+type BeatPreset struct {
+	Name        string
+	Description string
+	Kick        []int
+	Snare       []int
+	HiHat       []int
+	Bass        []int
+}
+
+// Sick beat presets for different vibes
+var BeatPresets = []BeatPreset{
+	{
+		Name:        "🔥 Trap Fire",
+		Description: "Hard-hitting trap beat with rolling hi-hats",
+		Kick:        []int{1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+		HiHat:       []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		Bass:        []int{1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1},
+	},
+	{
+		Name:        "🎸 Rock Solid",
+		Description: "Classic rock beat - simple but powerful",
+		Kick:        []int{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+		HiHat:       []int{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+		Bass:        []int{1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+	},
+	{
+		Name:        "🕺 Disco Funk",
+		Description: "Groovy disco vibes with syncopated rhythm",
+		Kick:        []int{1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0},
+		HiHat:       []int{0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1},
+		Bass:        []int{1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1},
+	},
+	{
+		Name:        "🌊 Lo-Fi Chill",
+		Description: "Relaxed, laid-back beats to study to",
+		Kick:        []int{1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0},
+		HiHat:       []int{1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1},
+		Bass:        []int{1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0},
+	},
+	{
+		Name:        "🎹 House Party",
+		Description: "Four-on-the-floor house music energy",
+		Kick:        []int{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+		HiHat:       []int{0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0},
+		Bass:        []int{1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1},
+	},
+	{
+		Name:        "💀 Dubstep Drop",
+		Description: "Heavy wobbles and aggressive rhythms",
+		Kick:        []int{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0},
+		HiHat:       []int{1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},
+		Bass:        []int{1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0},
+	},
+	{
+		Name:        "🥁 Drum & Bass",
+		Description: "Fast-paced jungle rhythms",
+		Kick:        []int{1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+		Snare:       []int{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+		HiHat:       []int{1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1},
+		Bass:        []int{1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0},
+	},
+	{
+		Name:        "🎺 Latin Heat",
+		Description: "Salsa-inspired rhythm with clave pattern",
+		Kick:        []int{1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0},
+		Snare:       []int{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0},
+		HiHat:       []int{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+		Bass:        []int{1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0},
+	},
 }
 
 // Channel types
@@ -40,22 +112,25 @@ const (
 var ChannelNames = []string{"KICK", "SNARE", "HIHAT", "BASS", "LEAD1", "LEAD2", "PAD", "FX"}
 
 type Engine struct {
-	ctx         *oto.Context
-	player      oto.Player
-	mu          sync.RWMutex
-	channels    []ChannelState
-	master      float64
-	running     bool
-	samplePos   int64
-	waveformL   []float64
-	waveformR   []float64
-	waveformIdx int
-	waveformMu  sync.RWMutex
-	envelopes   []float64
-	noisePhase  float64
-	bassPhase   float64
-	leadPhases  []float64
-	padPhases   []float64
+	ctx          *oto.Context
+	player       oto.Player
+	mu           sync.RWMutex
+	channels     []ChannelState
+	master       float64
+	running      bool
+	samplePos    int64
+	waveformL    []float64
+	waveformR    []float64
+	waveformIdx  int
+	waveformMu   sync.RWMutex
+	envelopes    []float64
+	noisePhase   float64
+	bassPhase    float64
+	leadPhases   []float64
+	padPhases    []float64
+	BPM          int
+	PatternIndex int
+	CurrentStep  int
 }
 
 type ChannelState struct {
@@ -111,15 +186,18 @@ func NewEngine(numChannels int) (*Engine, error) {
 	}
 
 	e := &Engine{
-		ctx:        ctx,
-		channels:   channels,
-		master:     0.8,
-		running:    true,
-		waveformL:  make([]float64, waveformSize),
-		waveformR:  make([]float64, waveformSize),
-		envelopes:  envelopes,
-		leadPhases: make([]float64, 2),
-		padPhases:  make([]float64, 4),
+		ctx:          ctx,
+		channels:     channels,
+		master:       0.8,
+		running:      true,
+		waveformL:    make([]float64, waveformSize),
+		waveformR:    make([]float64, waveformSize),
+		envelopes:    envelopes,
+		leadPhases:   make([]float64, 2),
+		padPhases:    make([]float64, 4),
+		BPM:          DefaultBPM,
+		PatternIndex: 0,
+		CurrentStep:  0,
 	}
 
 	e.player = ctx.NewPlayer(&audioStream{engine: e})
@@ -153,6 +231,17 @@ func (s *audioStream) Read(buf []byte) (int, error) {
 		}
 	}
 
+	// Get current BPM and pattern
+	s.engine.mu.RLock()
+	bpm := s.engine.BPM
+	patternIdx := s.engine.PatternIndex
+	s.engine.mu.RUnlock()
+
+	if patternIdx >= len(BeatPresets) {
+		patternIdx = 0
+	}
+	pattern := BeatPresets[patternIdx]
+
 	samplesPerBeat := sampleRate * 60 / bpm / 4 // 16th notes
 
 	samples := len(buf) / 4
@@ -162,20 +251,21 @@ func (s *audioStream) Read(buf []byte) (int, error) {
 		s.engine.samplePos++
 
 		step := int(samplePos/int64(samplesPerBeat)) % 16
+		s.engine.CurrentStep = step
 		stepProgress := float64(samplePos%int64(samplesPerBeat)) / float64(samplesPerBeat)
 
 		// Trigger envelopes on beat
 		if samplePos%int64(samplesPerBeat) == 0 {
-			if patterns["kick"][step] == 1 {
+			if pattern.Kick[step] == 1 {
 				s.engine.envelopes[ChKick] = 1.0
 			}
-			if patterns["snare"][step] == 1 {
+			if pattern.Snare[step] == 1 {
 				s.engine.envelopes[ChSnare] = 1.0
 			}
-			if patterns["hihat"][step] == 1 {
+			if pattern.HiHat[step] == 1 {
 				s.engine.envelopes[ChHiHat] = 1.0
 			}
-			if patterns["bass"][step] == 1 {
+			if pattern.Bass[step] == 1 {
 				s.engine.envelopes[ChBass] = 1.0
 			}
 		}
@@ -343,6 +433,66 @@ func (e *Engine) SetMasterVolume(value uint8) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.master = float64(value) / 127.0
+}
+
+// SetBPM sets the tempo in beats per minute
+func (e *Engine) SetBPM(bpm int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if bpm < MinBPM {
+		bpm = MinBPM
+	}
+	if bpm > MaxBPM {
+		bpm = MaxBPM
+	}
+	e.BPM = bpm
+}
+
+// GetBPM returns current tempo
+func (e *Engine) GetBPM() int {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.BPM
+}
+
+// SetPattern sets the current beat pattern
+func (e *Engine) SetPattern(index int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if index >= 0 && index < len(BeatPresets) {
+		e.PatternIndex = index
+	}
+}
+
+// GetPattern returns current pattern index
+func (e *Engine) GetPattern() int {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.PatternIndex
+}
+
+// GetCurrentStep returns the current step (0-15)
+func (e *Engine) GetCurrentStep() int {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.CurrentStep
+}
+
+// NextPattern cycles to the next pattern
+func (e *Engine) NextPattern() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.PatternIndex = (e.PatternIndex + 1) % len(BeatPresets)
+}
+
+// PrevPattern cycles to the previous pattern
+func (e *Engine) PrevPattern() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.PatternIndex--
+	if e.PatternIndex < 0 {
+		e.PatternIndex = len(BeatPresets) - 1
+	}
 }
 
 func (e *Engine) Close() {
