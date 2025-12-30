@@ -181,8 +181,6 @@ func RenderWaveform(leftWave, rightWave []float64) string {
 	leftStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4"))
 	// Right channel (bottom half) - magenta
 	rightStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#D946EF"))
-	// Stereo mix (middle) - green when both overlap
-	mixStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#22C55E"))
 
 	halfHeight := height / 2
 
