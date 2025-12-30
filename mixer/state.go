@@ -45,6 +45,11 @@ func NewState(numChannels int) *State {
 		channels[i] = NewChannel(i, channelName(i))
 	}
 
+	// Mute FX channel by default (it can sound harsh)
+	if numChannels > audio.ChFX {
+		channels[audio.ChFX].Mute = true
+	}
+
 	// Initialize audio engine
 	audioEngine, _ := audio.NewEngine(numChannels)
 
@@ -63,6 +68,7 @@ func NewState(numChannels int) *State {
 		for i, ch := range channels {
 			audioEngine.SetChannelVolume(i, ch.Volume)
 			audioEngine.SetChannelPan(i, ch.Pan)
+			audioEngine.SetChannelMute(i, ch.Mute)
 		}
 		audioEngine.SetMasterVolume(state.MasterVolume)
 	}
