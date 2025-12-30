@@ -2,7 +2,7 @@
 
 A terminal-based MIDI mixer application built with Go, featuring 8 channel strips with volume faders, pan controls, mute/solo buttons, built-in audio synthesis, and bidirectional MIDI support.
 
-![MIDI Mixer Screenshot](screenshot.png)
+![alt text](<screenshot.png>)
 
 ## Features
 
