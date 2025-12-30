@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -28,16 +29,29 @@ type Model struct {
 	width          int
 	height         int
 	err            error
+	waveformL      []float64
+	waveformR      []float64
 }
 
 // MidiMsg is sent when a MIDI CC message is received
 type MidiMsg midi.CCMessage
 
+// TickMsg triggers waveform updates
+type TickMsg time.Time
+
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		listenForMidi(m.state.MidiHandler),
+		tickCmd(),
 	)
+}
+
+// tickCmd returns a command that ticks for animation
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*33, func(t time.Time) tea.Msg {
+		return TickMsg(t)
+	})
 }
 
 // listenForMidi creates a command that listens for MIDI messages
@@ -58,6 +72,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
+
+	case TickMsg:
+		// Update waveform data from audio engine
+		if m.state.AudioEngine != nil {
+			m.waveformL, m.waveformR = m.state.AudioEngine.GetWaveform()
+		}
+		return m, tickCmd()
 
 	case MidiMsg:
 		m.handleMidiCC(midi.CCMessage(msg))
@@ -216,7 +237,7 @@ func (m Model) renderMixerView() string {
 	var sections []string
 
 	// Title
-	title := ui.TitleStyle.Render("🎛️  MIDI MIXER")
+	title := ui.TitleStyle.Render("🎛️  MIDI MIXER  ─  120 BPM")
 	sections = append(sections, title)
 
 	// Error message if any
@@ -224,6 +245,14 @@ func (m Model) renderMixerView() string {
 		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444"))
 		sections = append(sections, errStyle.Render(fmt.Sprintf("Error: %v", m.err)))
 	}
+
+	// Waveform visualizer
+	if len(m.waveformL) > 0 {
+		sections = append(sections, ui.RenderWaveform(m.waveformL, m.waveformR))
+		sections = append(sections, "")
+		sections = append(sections, ui.RenderVUMeter(m.waveformL, m.waveformR))
+	}
+	sections = append(sections, "")
 
 	// Mixer channels
 	sections = append(sections, ui.RenderMixer(m.state))

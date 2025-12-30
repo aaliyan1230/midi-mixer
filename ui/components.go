@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"midi-mixer/mixer"
@@ -10,7 +11,9 @@ import (
 )
 
 const (
-	FaderHeight = 12 // Number of rows for fader display
+	FaderHeight    = 10 // Number of rows for fader display
+	WaveformWidth  = 80
+	WaveformHeight = 8
 )
 
 // RenderFader renders a vertical fader for a value 0-127
@@ -53,8 +56,12 @@ func RenderPanKnob(pan uint8) string {
 func RenderChannel(ch mixer.Channel, selected bool) string {
 	var parts []string
 
-	// Channel name
-	parts = append(parts, ChannelNameStyle.Render(fmt.Sprintf("Ch %s", ch.Name)))
+	// Channel name - truncate if too long
+	name := ch.Name
+	if len(name) > 6 {
+		name = name[:6]
+	}
+	parts = append(parts, ChannelNameStyle.Render(name))
 	parts = append(parts, "")
 
 	// Fader
@@ -134,4 +141,156 @@ func RenderStatus(state *mixer.State) string {
 
 	status := fmt.Sprintf("MIDI In: %s │ MIDI Out: %s", inPort, outPort)
 	return StatusStyle.Render(status)
+}
+
+// Waveform block characters for different amplitudes
+var waveBlocks = []string{" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
+
+// RenderWaveform renders a stereo waveform oscilloscope
+func RenderWaveform(leftWave, rightWave []float64) string {
+	if len(leftWave) == 0 || len(rightWave) == 0 {
+		return ""
+	}
+
+	width := WaveformWidth
+	height := WaveformHeight
+
+	// Downsample waveform to fit width
+	step := len(leftWave) / width
+	if step < 1 {
+		step = 1
+	}
+
+	// Build waveform display
+	var lines []string
+
+	// Header
+	headerStyle := lipgloss.NewStyle().Foreground(ColorAccent).Bold(true)
+	lines = append(lines, headerStyle.Render("┌─ WAVEFORM ─────────────────────────────────────────────────────────────────┐"))
+
+	// Create display buffer
+	display := make([][]string, height)
+	for i := range display {
+		display[i] = make([]string, width)
+		for j := range display[i] {
+			display[i][j] = " "
+		}
+	}
+
+	// Left channel (top half) - cyan
+	leftStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4"))
+	// Right channel (bottom half) - magenta
+	rightStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#D946EF"))
+	// Stereo mix (middle) - green when both overlap
+	mixStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#22C55E"))
+
+	halfHeight := height / 2
+
+	for x := 0; x < width && x*step < len(leftWave); x++ {
+		// Get sample values
+		lSample := leftWave[x*step]
+		rSample := rightWave[x*step]
+
+		// Scale to display coordinates
+		lY := int((1 - lSample) * float64(halfHeight-1))
+		rY := halfHeight + int((1-rSample)*float64(halfHeight-1))
+
+		if lY < 0 {
+			lY = 0
+		}
+		if lY >= halfHeight {
+			lY = halfHeight - 1
+		}
+		if rY < halfHeight {
+			rY = halfHeight
+		}
+		if rY >= height {
+			rY = height - 1
+		}
+
+		// Draw points
+		display[lY][x] = "L"
+		display[rY][x] = "R"
+	}
+
+	// Render display to strings
+	for y := 0; y < height; y++ {
+		var line strings.Builder
+		line.WriteString("│")
+		for x := 0; x < width; x++ {
+			char := display[y][x]
+			switch char {
+			case "L":
+				line.WriteString(leftStyle.Render("█"))
+			case "R":
+				line.WriteString(rightStyle.Render("█"))
+			default:
+				if y == halfHeight-1 || y == halfHeight {
+					line.WriteString(lipgloss.NewStyle().Foreground(ColorSurface).Render("─"))
+				} else {
+					line.WriteString(" ")
+				}
+			}
+		}
+		line.WriteString("│")
+		lines = append(lines, line.String())
+	}
+
+	// Footer with labels
+	footerStyle := lipgloss.NewStyle().Foreground(ColorTextDim)
+	lines = append(lines, footerStyle.Render("└─ ")+leftStyle.Render("■ LEFT")+footerStyle.Render("  ")+rightStyle.Render("■ RIGHT")+footerStyle.Render(" ──────────────────────────────────────────────────────────┘"))
+
+	return strings.Join(lines, "\n")
+}
+
+// RenderVUMeter renders a horizontal VU meter
+func RenderVUMeter(leftWave, rightWave []float64) string {
+	// Calculate RMS levels
+	var leftRMS, rightRMS float64
+	for i := range leftWave {
+		leftRMS += leftWave[i] * leftWave[i]
+		rightRMS += rightWave[i] * rightWave[i]
+	}
+	if len(leftWave) > 0 {
+		leftRMS = math.Sqrt(leftRMS / float64(len(leftWave)))
+		rightRMS = math.Sqrt(rightRMS / float64(len(rightWave)))
+	}
+
+	width := 40
+	leftBars := int(leftRMS * float64(width) * 2)
+	rightBars := int(rightRMS * float64(width) * 2)
+	if leftBars > width {
+		leftBars = width
+	}
+	if rightBars > width {
+		rightBars = width
+	}
+
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#22C55E"))
+	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#EAB308"))
+	redStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444"))
+	dimStyle := lipgloss.NewStyle().Foreground(ColorSurface)
+
+	renderBar := func(level int) string {
+		var bar strings.Builder
+		for i := 0; i < width; i++ {
+			if i < level {
+				if i < width*6/10 {
+					bar.WriteString(greenStyle.Render("█"))
+				} else if i < width*8/10 {
+					bar.WriteString(yellowStyle.Render("█"))
+				} else {
+					bar.WriteString(redStyle.Render("█"))
+				}
+			} else {
+				bar.WriteString(dimStyle.Render("░"))
+			}
+		}
+		return bar.String()
+	}
+
+	leftLabel := lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4")).Render("L ")
+	rightLabel := lipgloss.NewStyle().Foreground(lipgloss.Color("#D946EF")).Render("R ")
+
+	return leftLabel + renderBar(leftBars) + "\n" + rightLabel + renderBar(rightBars)
 }

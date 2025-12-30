@@ -72,6 +72,9 @@ func NewState(numChannels int) *State {
 
 // channelName returns default name for channel index
 func channelName(idx int) string {
+	if idx < len(audio.ChannelNames) {
+		return audio.ChannelNames[idx]
+	}
 	return string(rune('1' + idx))
 }
 
